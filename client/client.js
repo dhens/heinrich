@@ -75,6 +75,7 @@ function onMessage(event) {
 }
 
 function send(data) {
-  console.log("send data to server:" ,...data)
-  ws.send(JSON.stringify({ ...data, name: username }));
+  const data = {...data, name: username}
+  console.log("send data to server:" ,data)
+  ws.send(JSON.stringify(data));
 }
