@@ -20,16 +20,14 @@ async function switchDevice() {
     });
     localVideo.srcObject = localStream;
 
-    if (peerConnection) {
-        const senders = peerConnection.getSenders();
-        senders.forEach(sender => {
-            if (sender.track.kind === 'audio' && localStream.getAudioTracks().length > 0) {
-                sender.replaceTrack(localStream.getAudioTracks()[0]);
-            } else if (sender.track.kind === 'video' && localStream.getVideoTracks().length > 0) {
-                sender.replaceTrack(localStream.getVideoTracks()[0]);
-            }
-        });
-    }
+async function login() {
+  username = usernameInput.value;
+
+  ws = new WebSocket('wss://talk.widesword.net/');
+  ws.addEventListener('message', onMessage);
+  ws.addEventListener('open', () => {
+    ws.send(JSON.stringify({ type: 'login', target: username }));
+  });
 }
 
 
@@ -47,19 +45,9 @@ async function getMedia() {
 
 }
 
-function getDevices(deviceInfos) {
-    for (let i = 0; i !== deviceInfos.length; ++i) {
-        let deviceInfo = deviceInfos[i];
-        let option = document.createElement('option');
-        option.value = deviceInfo.deviceId;
-        if (deviceInfo.kind === 'audioinput') {
-            option.text = deviceInfo.label || 'Microphone ' + (audioSelect.length + 1);
-            audioSelect.appendChild(option);
-        } else if (deviceInfo.kind === 'videoinput') {
-            option.text = deviceInfo.label || 'Camera ' + (videoSelect.length + 1);
-            videoSelect.appendChild(option);
-        }
-    }
+  const offer = await peerConnection.createOffer();
+  await peerConnection.setLocalDescription(offer);
+  send({ type: 'offer', offer: peerConnection.localDescription, target: peerName });
 }
 
 
@@ -136,19 +124,20 @@ function initiateCall(otherId) {
         });
 }
 
-function handleOffer(msg) {
-    const pc = setupPeerConnection(false, msg.source);
-    pc.setRemoteDescription(msg.offer).then(() => pc.createAnswer())
-        .then(answer => pc.setLocalDescription(answer))
-        .then(() => {
-            socket.send(JSON.stringify({ type: 'answer', target: msg.source, answer: pc.localDescription }));
-        });
+  console.log("Received offer:", offer);
+
+  await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+  const answer = await peerConnection.createAnswer();
+  await peerConnection.setLocalDescription(answer);
+  send({ type: 'answer', answer, target: peerName });
 }
 
 function handleAnswer(msg) {
     peerConnection.setRemoteDescription(msg.answer);
 }
 
-function handleIceCandidate(msg) {
-    peerConnection.addIceCandidate(msg.candidate);
+function send(data) {
+  const body = {...data, target: username}
+  console.log("send data to server:" ,data)
+  ws.send(JSON.stringify(body));
 }
