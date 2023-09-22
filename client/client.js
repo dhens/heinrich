@@ -31,17 +31,9 @@ async function login() {
 }
 
 
-async function getMedia() {
-    navigator.mediaDevices.getUserMedia({ video: true, audio: true }).then(async (stream) => {
-    let selectedAudioSource = audioSelect.value;
-    let selectedVideoSource = videoSelect.value;
-    
-    localStream = await navigator.mediaDevices.getUserMedia({
-        video: { deviceId: selectedVideoSource ? { exact: selectedVideoSource } : undefined },
-        audio: { deviceId: selectedAudioSource ? { exact: selectedAudioSource } : undefined }
-    });
-    localVideo.srcObject = localStream;
-});
+  localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+  localVideo.srcObject = localStream;
+  localVideo.muted = true;
 
 }
 
@@ -124,12 +116,10 @@ function initiateCall(otherId) {
         });
 }
 
-  console.log("Received offer:", offer);
-
   await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
   const answer = await peerConnection.createAnswer();
   await peerConnection.setLocalDescription(answer);
-  send({ type: 'answer', answer, target: peerName });
+  send({ type: 'answer', answer: peerConnection.localDescription, target: peerName });
 }
 
 function handleAnswer(msg) {
@@ -137,7 +127,5 @@ function handleAnswer(msg) {
 }
 
 function send(data) {
-  const body = {...data, target: username}
-  console.log("send data to server:" ,data)
-  ws.send(JSON.stringify(body));
+  ws.send(JSON.stringify({...data, target: username }));
 }
