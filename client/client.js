@@ -1,78 +1,91 @@
-const myIdInput = document.getElementById("myId");
-const targetIdInput = document.getElementById("targetId");
-const statusDiv = document.getElementById("status");
-const startBtn = document.getElementById("startBtn");
-const callBtn = document.getElementById("callBtn");
-const endBtn = document.getElementById("endBtn");
+let websocket = new WebSocket('wss://worker-floral-voice-f21f.justaplayground.workers.dev/');
+let peerConnection;
+const config = {
+    iceServers: [{
+        urls: 'stun:stun.l.google.com:19302'
+    }]
+};
 
-let websocket;
+document.addEventListener("DOMContentLoaded", function() {
+    let yourVideo = document.getElementById("yourVideo");
+    let remoteVideo = document.getElementById("remoteVideo");
 
-function startWebSocket() {
-    if (!websocket || websocket.readyState !== WebSocket.OPEN) {
-        websocket = new WebSocket('wss://worker-floral-voice-f21f.justaplayground.workers.dev');
+    navigator.mediaDevices.getUserMedia({video: true, audio: true}).then(stream => {
+        yourVideo.srcObject = stream;
+    });
 
-        websocket.addEventListener('open', event => {
-            console.log('Connected to the signaling server');
-            setStatus("Connected to the signaling server.");
-            register(myIdInput.value);
-        });
+    websocket.onopen = function() {
+        websocket.send(JSON.stringify({ register: true }));
+    };
 
-        websocket.addEventListener('message', event => {
-            const data = JSON.parse(event.data);
-            if (data.echo) {
-                console.log('Echo from server:', data.echo);
-            } else {
-                // Handle other types of data or messages.
+    websocket.onmessage = function(event) {
+        const data = JSON.parse(event.data);
+        if (data['offer']) {
+            const remoteOffer = new RTCSessionDescription(data['offer']);
+            answerCall(remoteOffer);
+        } else if (data['answer']) {
+            const remoteAnswer = new RTCSessionDescription(data['answer']);
+            peerConnection.setRemoteDescription(remoteAnswer);
+        } else if (data['ice-candidate']) {
+            const iceCandidate = new RTCIceCandidate(data['ice-candidate']);
+            peerConnection.addIceCandidate(iceCandidate);
+        } else if (data.id) {
+            document.getElementById('yourIdDisplay').textContent = data.id;
+        } else if (data.onlineUsers) {
+            updateOnlineUsers(data.onlineUsers);
+        }
+    };
+
+    function createPeerConnection() {
+        peerConnection = new RTCPeerConnection(config);
+        peerConnection.onicecandidate = event => {
+            if (event.candidate) {
+                websocket.send(JSON.stringify({ 'ice-candidate': event.candidate }));
             }
-        });
-
-        websocket.addEventListener('error', error => {
-            console.error(`WebSocket Error: ${error}`);
-        });
-
-        websocket.addEventListener('close', event => {
-            if (event.wasClean) {
-                setStatus(`Closed cleanly, code=${event.code}, reason=${event.reason}`);
-            } else {
-                setStatus('Connection died');
-            }
-        });
-    } else {
-        console.log('WebSocket is already opened.');
+        };
+        peerConnection.ontrack = event => {
+            remoteVideo.srcObject = event.streams[0];
+        };
+        const stream = yourVideo.srcObject;
+        for (const track of stream.getTracks()) {
+            peerConnection.addTrack(track, stream);
+        }
     }
-}
 
-function register(myId) {
-    if (websocket && websocket.readyState === WebSocket.OPEN) {
-        websocket.send(JSON.stringify({ register: myId }));
-    } else {
-        console.error('WebSocket is not opened.');
+    function startCall() {
+        createPeerConnection();
+        const offerOptions = {
+            offerToReceiveAudio: 1,
+            offerToReceiveVideo: 1
+        };
+        peerConnection.createOffer(offerOptions).then(offer => {
+            return peerConnection.setLocalDescription(offer);
+        }).then(() => {
+            websocket.send(JSON.stringify({ 'offer': peerConnection.localDescription }));
+        });
     }
-}
 
-function callTarget() {
-    if (websocket && websocket.readyState === WebSocket.OPEN) {
-        websocket.send(JSON.stringify({ call: targetIdInput.value }));
-    } else {
-        console.error('WebSocket is not opened.');
+    function answerCall() {
+        createPeerConnection();
+        peerConnection.setRemoteDescription(new RTCSessionDescription(remoteOffer))
+        .then(() => {
+            return peerConnection.createAnswer();
+        }).then(answer => {
+            return peerConnection.setLocalDescription(answer);
+        }).then(() => {
+            websocket.send(JSON.stringify({ 'answer': peerConnection.localDescription }));
+        });
     }
-}
 
-function setStatus(message) {
-    statusDiv.textContent = message;
-}
-
-startBtn.addEventListener("click", function() {
-    startWebSocket();
-});
-
-callBtn.addEventListener("click", function() {
-    callTarget();
-});
-
-endBtn.addEventListener("click", function() {
-    if (websocket && websocket.readyState === WebSocket.OPEN) {
-        websocket.close(1000, "Ending call");
-        setStatus("Call ended.");
+    function updateOnlineUsers(users) {
+        const onlineUsersDiv = document.getElementById("onlineUsers");
+        onlineUsersDiv.innerHTML = '';
+        users.forEach(user => {
+            let userDiv = document.createElement("div");
+            userDiv.classList.add("user");
+            userDiv.textContent = user;
+            userDiv.onclick = () => startCall();
+            onlineUsersDiv.appendChild(userDiv);
+        });
     }
 });
