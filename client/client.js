@@ -37,7 +37,7 @@ async function startCall() {
 
   const offer = await peerConnection.createOffer();
   await peerConnection.setLocalDescription(offer);
-  send({ type: 'offer', offer, name: peerName });
+  send({ type: 'offer', offer: peerConnection.localDescription, name: peerName });
 }
 
 async function answerCall(offer) {
