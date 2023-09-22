@@ -124,3 +124,7 @@ function onMessage(event) {
           break;
   }
 }
+
+function send(data) {
+    ws.send(JSON.stringify({...data, target: username }));
+}
