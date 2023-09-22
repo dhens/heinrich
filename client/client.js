@@ -85,41 +85,42 @@ async function setupPeerConnection() {
 }
 
 function onMessage(event) {
-    const data = JSON.parse(event.data);
-    switch (data.type) {
-        case 'offer':
-            answerCall(data.offer);
-            break;
-        case 'answer':
-            if (!peerConnection) {
-                console.error('PeerConnection is not initialized.');
-                return;
-            }
-            peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer))
-                .then(() => {
-                    // Process the queued candidates after setting the remote description
-                    while (pendingCandidates.length) {
-                        const candidate = pendingCandidates.shift();
-                        peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
-                    }
-                });
-            break;
-        case 'candidate':
-            if (!peerConnection) {
-                console.error('PeerConnection is not initialized.');
-                return;
-            }
-            if (peerConnection.remoteDescription && peerConnection.remoteDescription.type) {
-                peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
-            } else {
-                pendingCandidates.push(data.candidate);
-            }
-            break;
-        default:
-            break;
-    }
-}
-
-function send(data) {
-    ws.send(JSON.stringify({...data, target: username }));
+  const data = JSON.parse(event.data);
+  switch (data.type) {
+      case 'offer':
+          answerCall(data.offer);
+          break;
+      case 'answer':
+          if (!peerConnection) {
+              console.error('PeerConnection is not initialized.');
+              return;
+          }
+          // Check if the current signaling state is expecting an answer
+          if (peerConnection.signalingState !== "have-local-offer") {
+              console.error(`Unexpected signaling state for answer: ${peerConnection.signalingState}`);
+              return;
+          }
+          peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer))
+              .then(() => {
+                  // Process the queued candidates after setting the remote description
+                  while (pendingCandidates.length) {
+                      const candidate = pendingCandidates.shift();
+                      peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+                  }
+              });
+          break;
+      case 'candidate':
+          if (!peerConnection) {
+              console.error('PeerConnection is not initialized.');
+              return;
+          }
+          if (peerConnection.remoteDescription && peerConnection.remoteDescription.type) {
+              peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
+          } else {
+              pendingCandidates.push(data.candidate);
+          }
+          break;
+      default:
+          break;
+  }
 }
