@@ -1,20 +1,33 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WebRTC Client</title>
     <style>
-        #onlineUsers { max-height: 150px; overflow-y: scroll; }
-        .user { padding: 5px; cursor: pointer; }
-        .user:hover { background-color: #f0f0f0; }
+        #onlineUsers { 
+            max-height: 150px; 
+            overflow-y: scroll; 
+        }
+        .user { 
+            padding: 5px; 
+            cursor: pointer; 
+        }
+        .user:hover { 
+            background-color: #f0f0f0; 
+        }
     </style>
 </head>
+
 <body>
     <h2>WebRTC Video Call</h2>
     
     <div>
-        Your ID: <span id="yourIdDisplay"></span>
+        Your ID: 
+        <input type="text" id="myId">
+        <button id="startBtn">Start Connection</button>
+        <span id="yourIdDisplay"></span>
     </div>
 
     <h3>Online Users</h3>
@@ -28,4 +41,5 @@
 
     <script src="client.js"></script>
 </body>
+
 </html>
