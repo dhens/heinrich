@@ -3,21 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WebRTC Example</title>
+    <title>WebRTC Video Call</title>
 </head>
 <body>
-    <h1>Simple WebRTC Demo</h1>
-
-    <video id="localVideo" autoplay playsinline></video>
-    <video id="remoteVideo" autoplay playsinline></video>
-
-    <input type="text" id="usernameInput" placeholder="Your Name">
-    <button onclick="login()">Login</button>
-
-    <input type="text" id="peerInput" placeholder="Peer's Name">
-    <button onclick="startCall()">Start Call</button>
-    <button onclick="answerCall()">Answer Call</button>
-
+    <h1>WebRTC Video Call</h1>
+    <div>
+        Your ID: <span id="myId"></span>
+    </div>
+    <h2>Online Users:</h2>
+    <ul id="userList"></ul>
+    <video id="localVideo" autoplay muted></video>
+    <video id="remoteVideo" autoplay></video>
     <script src="client.js"></script>
 </body>
 </html>
