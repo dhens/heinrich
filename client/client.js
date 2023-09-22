@@ -5,9 +5,11 @@ const myIdDisplay = document.getElementById('myId');
 const audioSelect = document.getElementById('audioSource');
 const videoSelect = document.getElementById('videoSource');
 
-audioSelect.addEventListener('change', switchDevice);
-videoSelect.addEventListener('change', switchDevice);
-navigator.mediaDevices.enumerateDevices().then(getDevices);
+let localStream;
+let remoteStream;
+let peerConnection;
+let username;
+let pendingCandidates = []; // Queue to store ICE candidates before setting remote description
 
 async function switchDevice() {
     if (localStream) {
@@ -21,111 +23,103 @@ async function switchDevice() {
     localVideo.srcObject = localStream;
 
 async function login() {
-  username = usernameInput.value;
+    username = usernameInput.value;
 
-  ws = new WebSocket('wss://talk.widesword.net/');
-  ws.addEventListener('message', onMessage);
-  ws.addEventListener('open', () => {
-    ws.send(JSON.stringify({ type: 'login', target: username }));
-  });
-}
-
-
-  localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-  localVideo.srcObject = localStream;
-  localVideo.muted = true;
-
-}
-
-  const offer = await peerConnection.createOffer();
-  await peerConnection.setLocalDescription(offer);
-  send({ type: 'offer', offer: peerConnection.localDescription, target: peerName });
-}
-
-
-const socket = new WebSocket('wss://talk.widesword.net');
-let localStream;
-let peerConnection;
-
-const config = {
-    iceServers: [
-      { urls: 'stun:stun.l.google.com:19302' },
-      { urls: 'stun:stun1.l.google.com:19302' },
-      { urls: 'stun:stun2.l.google.com:19302' },
-      { urls: 'stun:stun3.l.google.com:19302' },
-      { urls: 'stun:stun4.l.google.com:19302' },
-    ]};  
-
-socket.addEventListener('message', event => {
-    const msg = JSON.parse(event.data);
-    switch (msg.type) {
-        case 'your-id':
-            myIdDisplay.textContent = msg.id;
-            break;
-        case 'online-users':
-            updateUserList(msg.users);
-            break;
-        case 'offer':
-            handleOffer(msg);
-            break;
-        case 'answer':
-            handleAnswer(msg);
-            break;
-        case 'candidate':
-            handleIceCandidate(msg);
-            break;
-    }
-});
-
-function updateUserList(users) {
-    userList.innerHTML = '';
-    if (users.length === 0) {
-        const li = document.createElement('li');
-        li.textContent = "No one is here yet. Maybe invite someone?";
-        userList.appendChild(li);
-        return;
-    }
-
-    users.forEach(user => {
-        const li = document.createElement('li');
-        li.textContent = user;
-        li.addEventListener('click', () => initiateCall(user));
-        userList.appendChild(li);
+    ws = new WebSocket('wss://talk.widesword.net/');
+    ws.addEventListener('message', onMessage);
+    ws.addEventListener('open', () => {
+        ws.send(JSON.stringify({ type: 'login', target: username }));
     });
 }
 
-function setupPeerConnection(isCaller, otherId) {
-    peerConnection = new RTCPeerConnection(config);
-    peerConnection.onicecandidate = event => {
-        if (event.candidate) {
-            socket.send(JSON.stringify({ type: 'candidate', target: otherId, candidate: event.candidate }));
+async function startCall() {
+    const peerName = peerInput.value;
+
+    localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+    localVideo.srcObject = localStream;
+    localVideo.muted = true;
+
+    peerConnection = new RTCPeerConnection(configuration);
+    peerConnection.onicecandidate = ({ candidate }) => {
+        if (candidate) {
+            send({ type: 'candidate', candidate, target: peerName });
         }
     };
-    peerConnection.ontrack = event => {
-        remoteVideo.srcObject = event.streams[0];
-    };
+    peerConnection.ontrack = ({ streams: [stream] }) => remoteVideo.srcObject = stream;
     localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
-    return peerConnection;
+
+    const offer = await peerConnection.createOffer();
+    await peerConnection.setLocalDescription(offer);
+    send({ type: 'offer', offer: peerConnection.localDescription, target: peerName });
 }
 
-function initiateCall(otherId) {
-    const pc = setupPeerConnection(true, otherId);
-    pc.createOffer().then(offer => pc.setLocalDescription(offer))
-        .then(() => {
-            socket.send(JSON.stringify({ type: 'offer', target: otherId, offer: pc.localDescription }));
-        });
+async function answerCall(offer) {
+    if (!peerConnection) {
+        await setupPeerConnection();
+    }
+    
+    await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+    const answer = await peerConnection.createAnswer();
+    await peerConnection.setLocalDescription(answer);
+    send({ type: 'answer', answer: peerConnection.localDescription, target: peerInput.value });
 }
 
-  await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
-  const answer = await peerConnection.createAnswer();
-  await peerConnection.setLocalDescription(answer);
-  send({ type: 'answer', answer: peerConnection.localDescription, target: peerName });
+async function setupPeerConnection() {
+    peerConnection = new RTCPeerConnection(configuration);
+    
+    peerConnection.onicecandidate = ({ candidate }) => {
+        if (candidate) {
+            send({ type: 'candidate', candidate, target: peerInput.value });
+        }
+    };
+    
+    peerConnection.ontrack = ({ streams: [stream] }) => remoteVideo.srcObject = stream;
+
+    if (localStream) {
+        localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+    } else {
+        localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        localVideo.srcObject = localStream;
+        localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+    }
 }
 
-function handleAnswer(msg) {
-    peerConnection.setRemoteDescription(msg.answer);
+function onMessage(event) {
+    const data = JSON.parse(event.data);
+    switch (data.type) {
+        case 'offer':
+            answerCall(data.offer);
+            break;
+        case 'answer':
+            if (!peerConnection) {
+                console.error('PeerConnection is not initialized.');
+                return;
+            }
+            peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer))
+                .then(() => {
+                    // Process the queued candidates after setting the remote description
+                    while (pendingCandidates.length) {
+                        const candidate = pendingCandidates.shift();
+                        peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+                    }
+                });
+            break;
+        case 'candidate':
+            if (!peerConnection) {
+                console.error('PeerConnection is not initialized.');
+                return;
+            }
+            if (peerConnection.remoteDescription && peerConnection.remoteDescription.type) {
+                peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
+            } else {
+                pendingCandidates.push(data.candidate);
+            }
+            break;
+        default:
+            break;
+    }
 }
 
 function send(data) {
-  ws.send(JSON.stringify({...data, target: username }));
+    ws.send(JSON.stringify({...data, target: username }));
 }
