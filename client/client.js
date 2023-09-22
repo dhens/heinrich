@@ -42,6 +42,13 @@ socket.addEventListener('message', event => {
 
 function updateUserList(users) {
     userList.innerHTML = '';
+    if (users.length === 0) {
+      const li = document.createElement('li');
+      li.textContent = "No one is here yet. Maybe invite someone?";
+      userList.appendChild(li);
+      return;
+    }
+
     users.forEach(user => {
         const li = document.createElement('li');
         li.textContent = user;
