@@ -8,12 +8,14 @@ let remoteStream;
 let peerConnection;
 let username;
 
+let ws;
+
 const configuration = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
 
 async function login() {
   username = usernameInput.value;
 
-  const ws = new WebSocket('wss://worker-floral-voice-f21f.justaplayground.workers.dev/');
+  ws = new WebSocket('wss://worker-floral-voice-f21f.justaplayground.workers.dev/');
   ws.addEventListener('message', onMessage);
   ws.addEventListener('open', () => {
     ws.send(JSON.stringify({ type: 'login', name: username }));
@@ -25,6 +27,8 @@ async function startCall() {
 
   localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
   localVideo.srcObject = localStream;
+  // Mute local audio input so we don't hear ourselves.
+  localVideo.muted = true;
 
   peerConnection = new RTCPeerConnection(configuration);
   peerConnection.onicecandidate = ({ candidate }) => send({ type: 'candidate', candidate });
