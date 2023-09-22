@@ -12,6 +12,9 @@ document.addEventListener("DOMContentLoaded", function() {
 
     navigator.mediaDevices.getUserMedia({video: true, audio: true}).then(stream => {
         yourVideo.srcObject = stream;
+        // Mute local audio playback
+        yourVideo.muted = true;
+
     });
 
     websocket.onopen = function() {
@@ -20,6 +23,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
     websocket.onmessage = function(event) {
         const data = JSON.parse(event.data);
+        console.log(data)
         if (data['offer']) {
             const remoteOffer = new RTCSessionDescription(data['offer']);
             answerCall(remoteOffer);
