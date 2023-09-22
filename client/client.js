@@ -13,7 +13,7 @@ const configuration = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] }
 async function login() {
   username = usernameInput.value;
 
-  const ws = new WebSocket('YOUR_WORKER_URL_HERE');
+  const ws = new WebSocket('wss://worker-floral-voice-f21f.justaplayground.workers.dev/');
   ws.addEventListener('message', onMessage);
   ws.addEventListener('open', () => {
     ws.send(JSON.stringify({ type: 'login', name: username }));
