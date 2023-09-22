@@ -22,7 +22,7 @@ const pc = new RTCPeerConnection(configuration);
 const yourId = Math.random().toString(36).substr(2, 9);
 yourIdDisplay.innerText = yourId;
 
-const socket = new WebSocket("https://worker-floral-voice-f21f.justaplayground.workers.dev/");
+const socket = new WebSocket("wss://worker-floral-voice-f21f.justaplayground.workers.dev/");
 socket.addEventListener("open", () => {
     // Register with the signaling server
     socket.send(JSON.stringify({
