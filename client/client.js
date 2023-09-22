@@ -7,8 +7,14 @@ const socket = new WebSocket('wss://talk.widesword.net');
 
 let localStream;
 let peerConnection;
-const config = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
-
+const config = {
+    iceServers: [
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'stun:stun1.l.google.com:19302' },
+      { urls: 'stun:stun2.l.google.com:19302' },
+      { urls: 'stun:stun3.l.google.com:19302' },
+      { urls: 'stun:stun4.l.google.com:19302' },
+    ]};  
 navigator.mediaDevices.getUserMedia({ video: true, audio: true }).then(stream => {
     localStream = stream;
     localVideo.srcObject = localStream;
