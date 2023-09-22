@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebRTC Client</title>
+    <style>
+        #onlineUsers { max-height: 150px; overflow-y: scroll; }
+        .user { padding: 5px; cursor: pointer; }
+        .user:hover { background-color: #f0f0f0; }
+    </style>
+</head>
+<body>
+    <h2>WebRTC Video Call</h2>
+    
+    <div>
+        Your ID: <span id="yourIdDisplay"></span>
+    </div>
+
+    <h3>Online Users</h3>
+    <div id="onlineUsers"></div>
+
+    <h3>Your Video</h3>
+    <video id="yourVideo" autoplay playsinline></video>
+
+    <h3>Remote Video</h3>
+    <video id="remoteVideo" autoplay playsinline></video>
+
+    <script src="client.js"></script>
+</body>
+</html>
