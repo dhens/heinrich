@@ -1,101 +1,78 @@
-let localStream;
-let remoteStream = new MediaStream();
-const yourVideo = document.getElementById("yourVideo");
-const remoteVideo = document.getElementById("remoteVideo");
-remoteVideo.srcObject = remoteStream;
-const onlineUsersDiv = document.getElementById("onlineUsers");
-const yourIdDisplay = document.getElementById("yourIdDisplay");
+document.addEventListener("DOMContentLoaded", function() {
+  const myIdInput = document.getElementById("myId");
+  const targetIdInput = document.getElementById("targetId");
+  const statusDiv = document.getElementById("status");
 
-const configuration = {
-  iceServers: [
-    { urls: "stun:stun.l.google.com:19302" },
-    { urls: "stun:stun1.l.google.com:19302" },
-    { urls: "stun:stun2.l.google.com:19302" },
-    { urls: "stun:stun3.l.google.com:19302" },
-    { urls: "stun:stun4.l.google.com:19302" },
-    { urls: "stun:stun.services.mozilla.com" }
-  ]
-};
-const pc = new RTCPeerConnection(configuration);
+  let websocket;
 
-// Generate a random ID for the user
-const yourId = Math.random().toString(36).substr(2, 9);
-yourIdDisplay.innerText = yourId;
+  function startWebSocket() {
+      if (!websocket || websocket.readyState !== WebSocket.OPEN) {
+          websocket = new WebSocket('wss://YOUR_WORKER_URL_HERE');
 
-const socket = new WebSocket("wss://worker-floral-voice-f21f.justaplayground.workers.dev/");
-socket.addEventListener("open", () => {
-    // Register with the signaling server
-    socket.send(JSON.stringify({
-        type: "register",
-        id: yourId
-    }));
+          websocket.addEventListener('open', event => {
+              console.log('Connected to the signaling server');
+              setStatus("Connected to the signaling server.");
+              register(myIdInput.value);
+          });
+
+          websocket.addEventListener('message', event => {
+              const data = JSON.parse(event.data);
+              if (data.echo) {
+                  console.log('Echo from server:', data.echo);
+              } else {
+                  // Handle other types of data or messages.
+              }
+          });
+
+          websocket.addEventListener('error', error => {
+              console.error(`WebSocket Error: ${error}`);
+          });
+
+          websocket.addEventListener('close', event => {
+              if (event.wasClean) {
+                  setStatus(`Closed cleanly, code=${event.code}, reason=${event.reason}`);
+              } else {
+                  setStatus('Connection died');
+              }
+          });
+      } else {
+          console.log('WebSocket is already opened.');
+      }
+  }
+
+  function register(myId) {
+      if (websocket && websocket.readyState === WebSocket.OPEN) {
+          websocket.send(JSON.stringify({ register: myId }));
+      } else {
+          console.error('WebSocket is not opened.');
+      }
+  }
+
+  function callTarget() {
+      if (websocket && websocket.readyState === WebSocket.OPEN) {
+          websocket.send(JSON.stringify({ call: targetIdInput.value }));
+      } else {
+          console.error('WebSocket is not opened.');
+      }
+  }
+
+  function setStatus(message) {
+      statusDiv.textContent = message;
+  }
+
+  document.getElementById("startBtn").addEventListener("click", function() {
+      startWebSocket();
+  });
+
+  document.getElementById("callBtn").addEventListener("click", function() {
+      callTarget();
+  });
+
+  document.getElementById("endBtn").addEventListener("click", function() {
+      if (websocket && websocket.readyState === WebSocket.OPEN) {
+          websocket.close(1000, "Ending call");
+          setStatus("Call ended.");
+      }
+  });
 });
 
-socket.addEventListener("message", (event) => {
-    const msg = JSON.parse(event.data);
-    if (msg.type === "online-users") {
-        // Update the list of online users
-        onlineUsersDiv.innerHTML = "";
-        msg.users.forEach(userId => {
-            if (userId !== yourId) {
-                const userDiv = document.createElement("div");
-                userDiv.className = "user";
-                userDiv.innerText = userId;
-                userDiv.addEventListener("click", () => startCall(userId));
-                onlineUsersDiv.appendChild(userDiv);
-            }
-        });
-    } else if (msg.type === "offer") {
-        localStorage.setItem("incomingOffer", JSON.stringify(msg.offer));
-        if (confirm("Incoming call from " + msg.from + "! Accept?")) {
-            answerCall(msg.from, msg.offer);
-        }
-    } else if (msg.type === "answer") {
-        pc.setRemoteDescription(msg.answer);
-    } else if (msg.type === "ice-candidate") {
-        pc.addIceCandidate(msg.candidate);
-    }
-});
-
-async function startCall(targetId) {
-    localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-    yourVideo.srcObject = localStream;
-    localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
-
-    const offer = await pc.createOffer();
-    await pc.setLocalDescription(offer);
-    socket.send(JSON.stringify({
-        type: "offer",
-        target: targetId,
-        offer: offer
-    }));
-}
-
-async function answerCall(fromId, offer) {
-    localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-    yourVideo.srcObject = localStream;
-    localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
-
-    await pc.setRemoteDescription(offer);
-    const answer = await pc.createAnswer();
-    await pc.setLocalDescription(answer);
-    socket.send(JSON.stringify({
-        type: "answer",
-        target: fromId,
-        answer: answer
-    }));
-}
-
-pc.onicecandidate = (event) => {
-    if (event.candidate) {
-        socket.send(JSON.stringify({
-            type: "ice-candidate",
-            target: localStorage.getItem("currentTargetId"),
-            candidate: event.candidate
-        }));
-    }
-};
-
-pc.ontrack = (event) => {
-    remoteStream.addTrack(event.track);
-};
