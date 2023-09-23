@@ -1,24 +1,23 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dawscord</title>
 </head>
+
 <body>
     <h1>Dawscord</h1>
     <p>btw this site is ass so if stuff doesn't work try to refresh!</p>
     <div>
         Your user ID: <span id="myId"></span>
     </div>
-    <div>
-        <label>Audio Source: </label>
-        <select id="audioSource"></select>
-    </div>
-    <div>
-        <label>Video Source: </label>
-        <select id="videoSource"></select>
-    </div>
+    <label for="audioSource">Audio Source:</label>
+    <select id="audioSource"></select>
+
+    <label for="videoSource">Video Source:</label>
+    <select id="videoSource"></select>
 
     <h2>Online Users (click an id to join):</h2>
     <ul id="userList"></ul>
@@ -26,4 +25,5 @@
     <video id="remoteVideo" autoplay playsinline></video>
     <script src="client.js"></script>
 </body>
+
 </html>

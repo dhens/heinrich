@@ -2,6 +2,8 @@ const localVideo = document.getElementById('localVideo');
 const remoteVideo = document.getElementById('remoteVideo');
 const userList = document.getElementById('userList');
 const myIdDisplay = document.getElementById('myId');
+const audioSelect = document.querySelector('#audioSource');
+const videoSelect = document.querySelector('#videoSource');
 
 const audioSelect = document.getElementById('audioSource');
 const videoSelect = document.getElementById('videoSource');
@@ -65,9 +67,9 @@ function getDevices(deviceInfos) {
 
 
 const socket = new WebSocket('wss://talk.widesword.net');
-
 let localStream;
 let peerConnection;
+
 const config = {
     iceServers: [
       { urls: 'stun:stun.l.google.com:19302' },
@@ -79,24 +81,19 @@ const config = {
 
 socket.addEventListener('message', event => {
     const msg = JSON.parse(event.data);
-
     switch (msg.type) {
         case 'your-id':
             myIdDisplay.textContent = msg.id;
             break;
-
         case 'online-users':
             updateUserList(msg.users);
             break;
-
         case 'offer':
             handleOffer(msg);
             break;
-
         case 'answer':
             handleAnswer(msg);
             break;
-
         case 'candidate':
             handleIceCandidate(msg);
             break;
@@ -106,10 +103,10 @@ socket.addEventListener('message', event => {
 function updateUserList(users) {
     userList.innerHTML = '';
     if (users.length === 0) {
-      const li = document.createElement('li');
-      li.textContent = "No one is here yet. Maybe invite someone?";
-      userList.appendChild(li);
-      return;
+        const li = document.createElement('li');
+        li.textContent = "No one is here yet. Maybe invite someone?";
+        userList.appendChild(li);
+        return;
     }
 
     users.forEach(user => {
@@ -120,44 +117,34 @@ function updateUserList(users) {
     });
 }
 
-function initiateCall(otherId) {
+function setupPeerConnection(isCaller, otherId) {
     peerConnection = new RTCPeerConnection(config);
     peerConnection.onicecandidate = event => {
         if (event.candidate) {
             socket.send(JSON.stringify({ type: 'candidate', target: otherId, candidate: event.candidate }));
         }
     };
-
     peerConnection.ontrack = event => {
         remoteVideo.srcObject = event.streams[0];
     };
-
     localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+    return peerConnection;
+}
 
-    peerConnection.createOffer().then(offer => peerConnection.setLocalDescription(offer))
+function initiateCall(otherId) {
+    const pc = setupPeerConnection(true, otherId);
+    pc.createOffer().then(offer => pc.setLocalDescription(offer))
         .then(() => {
-            socket.send(JSON.stringify({ type: 'offer', target: otherId, offer: peerConnection.localDescription }));
+            socket.send(JSON.stringify({ type: 'offer', target: otherId, offer: pc.localDescription }));
         });
 }
 
 function handleOffer(msg) {
-    peerConnection = new RTCPeerConnection(config);
-    peerConnection.onicecandidate = event => {
-        if (event.candidate) {
-            socket.send(JSON.stringify({ type: 'candidate', target: msg.source, candidate: event.candidate }));
-        }
-    };
-
-    peerConnection.ontrack = event => {
-        remoteVideo.srcObject = event.streams[0];
-    };
-
-    localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
-
-    peerConnection.setRemoteDescription(msg.offer).then(() => peerConnection.createAnswer())
-        .then(answer => peerConnection.setLocalDescription(answer))
+    const pc = setupPeerConnection(false, msg.source);
+    pc.setRemoteDescription(msg.offer).then(() => pc.createAnswer())
+        .then(answer => pc.setLocalDescription(answer))
         .then(() => {
-            socket.send(JSON.stringify({ type: 'answer', target: msg.source, answer: peerConnection.localDescription }));
+            socket.send(JSON.stringify({ type: 'answer', target: msg.source, answer: pc.localDescription }));
         });
 }
 
