@@ -2,8 +2,6 @@ const localVideo = document.getElementById('localVideo');
 const remoteVideo = document.getElementById('remoteVideo');
 const userList = document.getElementById('userList');
 const myIdDisplay = document.getElementById('myId');
-const audioSelect = document.querySelector('#audioSource');
-const videoSelect = document.querySelector('#videoSource');
 
 const audioSelect = document.getElementById('audioSource');
 const videoSelect = document.getElementById('videoSource');
