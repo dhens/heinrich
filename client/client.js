@@ -15,6 +15,8 @@ navigator.mediaDevices.enumerateDevices().then(getDevices);
 // Otherwise, you have to change the inputs to get audio/video out.
 navigator.mediaDevices.enumerateDevices().then(switchDevice);
 
+let currentAudioVideoDevices;
+
 let user = {
     id: ""
 }
@@ -37,6 +39,8 @@ async function switchDevice() {
         audio: { deviceId: audioSelect.value ? { exact: audioSelect.value } : undefined }
     });
     localVideo.srcObject = localStream;
+    // Set global audio / video settings.
+    currentAudioVideoDevices = localStream;
 
     if (peerConnection) {
         const senders = peerConnection.getSenders();
@@ -119,6 +123,18 @@ socket.addEventListener('message', event => {
 
     }
 });
+
+var un_mute = document.getElementById('un-mute');
+
+un_mute.onclick = function() {
+    const currentAudioTrackEnabled = currentAudioVideoDevices.getAudioTracks()[0].enabled;
+    if (currentAudioTrackEnabled) {
+        currentAudioVideoDevices.getAudioTracks()[0].enabled = false;
+    } else {
+        currentAudioVideoDevices.getAudioTracks()[0].enabled = true;
+    }
+};
+
 
 function addPeer(peerID) {
     connectedPeers[peerID] = 1;
