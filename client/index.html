@@ -1,15 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dawscord</title>
 </head>
-
 <body>
     <h1>Dawscord</h1>
-    <p>btw this site is ass so if stuff doesn't work try to refresh!</p>
     <div>
         Your user ID: <span id="myId"></span>
     </div>
@@ -23,7 +20,12 @@
     <ul id="userList"></ul>
     <video id="localVideo" autoplay muted playsinline></video>
     <video id="remoteVideo" autoplay playsinline></video>
-    <script src="client.js"></script>
+
+    <div id="chat">
+        <ul id="chat-history"></ul>
+        <input type="text" placeholder="Message" messagePad">
+    </div>
 </body>
+    <script src="client.js"></script>
 
 </html>

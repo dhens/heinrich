@@ -3,6 +3,8 @@ const remoteVideo = document.getElementById('remoteVideo');
 const userList = document.getElementById('userList');
 const myIdDisplay = document.getElementById('myId');
 
+const chatHistory = document.getElementById("chat-history");
+
 const audioSelect = document.getElementById('audioSource');
 const videoSelect = document.getElementById('videoSource');
 
@@ -65,7 +67,6 @@ function getDevices(deviceInfos) {
     }
 }
 
-
 const socket = new WebSocket('wss://talk.widesword.net');
 let localStream;
 let peerConnection;
@@ -98,8 +99,17 @@ socket.addEventListener('message', event => {
         case 'candidate':
             handleIceCandidate(msg);
             break;
+        case 'new-chat':
+            handleNewChat(msg)
+            break;
+
     }
 });
+
+function handleNewChat(msg) {
+    const newMessageListItem = document.createElement("li")
+    newMessageListItem.textContent = msg.contents
+}
 
 function updateUserList(users) {
     userList.innerHTML = '';
