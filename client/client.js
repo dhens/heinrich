@@ -9,6 +9,9 @@ const videoSelect = document.getElementById('videoSource');
 audioSelect.addEventListener('change', switchDevice);
 videoSelect.addEventListener('change', switchDevice);
 navigator.mediaDevices.enumerateDevices().then(getDevices);
+// Required to kickoff device selection for mic//video input. 
+// Otherwise, you have to change the inputs to get audio/video out.
+navigator.mediaDevices.enumerateDevices().then(switchDevice);
 
 async function switchDevice() {
     if (localStream) {
