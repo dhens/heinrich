@@ -8,3 +8,8 @@ video
 body {
     background-color: #bdc3c7;
 }
+
+#localVideo, #remoteVideo {
+    width: 500px;
+    height: auto;
+}

@@ -4,7 +4,7 @@ const userList = document.getElementById('userList');
 const myIdDisplay = document.getElementById('myId');
 
 const chatHistory = document.getElementById("chat-history");
-
+const messagePad = document.getElementById("messagePad");
 const audioSelect = document.getElementById('audioSource');
 const videoSelect = document.getElementById('videoSource');
 
@@ -14,6 +14,18 @@ navigator.mediaDevices.enumerateDevices().then(getDevices);
 // Required to kickoff device selection for mic//video input. 
 // Otherwise, you have to change the inputs to get audio/video out.
 navigator.mediaDevices.enumerateDevices().then(switchDevice);
+
+let user = {
+    id: ""
+}
+
+// Send new message to server if Enter key is pressed while in focus of message input element.
+messagePad.addEventListener("keypress", event => {
+    if (event.key === "Enter") {
+        sendNewChat()
+    }
+});
+
 
 async function switchDevice() {
     if (localStream) {
@@ -37,7 +49,6 @@ async function switchDevice() {
         });
     }
 }
-
 
 async function getMedia() {
     navigator.mediaDevices.getUserMedia({ video: true, audio: true }).then(async (stream) => {
@@ -70,6 +81,7 @@ function getDevices(deviceInfos) {
 const socket = new WebSocket('wss://talk.widesword.net');
 let localStream;
 let peerConnection;
+let connectedPeers = {};
 
 const config = {
     iceServers: [
@@ -86,6 +98,8 @@ socket.addEventListener('message', event => {
     switch (msg.type) {
         case 'your-id':
             myIdDisplay.textContent = msg.id;
+            // Set username
+            user.id = msg.id;
             break;
         case 'online-users':
             updateUserList(msg.users);
@@ -100,15 +114,37 @@ socket.addEventListener('message', event => {
             handleIceCandidate(msg);
             break;
         case 'new-chat':
-            handleNewChat(msg)
+            renderNewChat(msg)
             break;
 
     }
 });
 
-function handleNewChat(msg) {
+function addPeer(peerID) {
+    connectedPeers[peerID] = 1;
+}
+
+function renderNewChat(msg) {
     const newMessageListItem = document.createElement("li")
-    newMessageListItem.textContent = msg.contents
+    newMessageListItem.textContent = `${msg.author}: ${msg.content}`;
+    chatHistory.appendChild(newMessageListItem)
+}
+
+function sendNewChat() {
+    // Send the message to every peer you're connected to.
+    const chatRecipients = Object.keys(connectedPeers)
+    const body = {type: "new-chat", content: messagePad.value, author: user.id, timestamp: Date.now()};
+    for (let i = 0; i < chatRecipients.length; i++) {
+        const peer = chatRecipients[i]
+        body.target = peer;
+        socket.send(JSON.stringify(body));    
+    }
+    renderNewChat(body)
+    clearChatInputElement();
+}
+
+function clearChatInputElement() {
+    messagePad.value = "";
 }
 
 function updateUserList(users) {
@@ -143,11 +179,17 @@ function setupPeerConnection(isCaller, otherId) {
 }
 
 function initiateCall(otherId) {
+    // Reset peers so we don't send messages to stale peers
+    connectedPeers = {};
     const pc = setupPeerConnection(true, otherId);
     pc.createOffer().then(offer => pc.setLocalDescription(offer))
         .then(() => {
             socket.send(JSON.stringify({ type: 'offer', target: otherId, offer: pc.localDescription }));
         });
+    // Add other user to list of peers.
+    // msg.source is the id of the "source" on the other end of the call.
+    connectedPeers[otherId] = 1;
+
 }
 
 function handleOffer(msg) {
@@ -156,11 +198,17 @@ function handleOffer(msg) {
         .then(answer => pc.setLocalDescription(answer))
         .then(() => {
             socket.send(JSON.stringify({ type: 'answer', target: msg.source, answer: pc.localDescription }));
-        });
+    });
+    // Add other user to list of peers.
+    // msg.source is the id of the "source" on the other end of the call.
+    connectedPeers[msg.source] = 1;
 }
 
 function handleAnswer(msg) {
     peerConnection.setRemoteDescription(msg.answer);
+    // Add other user to list of peers.
+    // msg.source is the id of the "source" on the other end of the call.
+    connectedPeers[msg.source] = 1;
 }
 
 function handleIceCandidate(msg) {
