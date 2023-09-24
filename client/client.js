@@ -131,6 +131,10 @@ function renderNewChat(msg) {
 }
 
 function sendNewChat() {
+    if (messagePad.value.length > 2048) {
+        alert("Maximum character limit of 2048 characters. Please shorten your message and try again.")
+        return;
+    }
     // Send the message to every peer you're connected to.
     const chatRecipients = Object.keys(connectedPeers)
     const body = {type: "new-chat", content: messagePad.value, author: user.id, timestamp: Date.now()};
