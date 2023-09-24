@@ -3,12 +3,17 @@ const remoteVideo = document.getElementById('remoteVideo');
 const userList = document.getElementById('userList');
 const myIdDisplay = document.getElementById('myId');
 
+const chatHistory = document.getElementById("chat-history");
+
 const audioSelect = document.getElementById('audioSource');
 const videoSelect = document.getElementById('videoSource');
 
 audioSelect.addEventListener('change', switchDevice);
 videoSelect.addEventListener('change', switchDevice);
 navigator.mediaDevices.enumerateDevices().then(getDevices);
+// Required to kickoff device selection for mic//video input. 
+// Otherwise, you have to change the inputs to get audio/video out.
+navigator.mediaDevices.enumerateDevices().then(switchDevice);
 
 async function switchDevice() {
     if (localStream) {
@@ -36,16 +41,15 @@ async function switchDevice() {
 
 async function getMedia() {
     navigator.mediaDevices.getUserMedia({ video: true, audio: true }).then(async (stream) => {
-    let selectedAudioSource = audioSelect.value;
-    let selectedVideoSource = videoSelect.value;
-    
-    localStream = await navigator.mediaDevices.getUserMedia({
-        video: { deviceId: selectedVideoSource ? { exact: selectedVideoSource } : undefined },
-        audio: { deviceId: selectedAudioSource ? { exact: selectedAudioSource } : undefined }
-    });
-    localVideo.srcObject = localStream;
-});
+        let selectedAudioSource = audioSelect.value;
+        let selectedVideoSource = videoSelect.value;
 
+        localStream = await navigator.mediaDevices.getUserMedia({
+            video: { deviceId: selectedVideoSource ? { exact: selectedVideoSource } : undefined },
+            audio: { deviceId: selectedAudioSource ? { exact: selectedAudioSource } : undefined }
+        });
+        localVideo.srcObject = localStream;
+    });
 }
 
 function getDevices(deviceInfos) {
@@ -63,19 +67,19 @@ function getDevices(deviceInfos) {
     }
 }
 
-
 const socket = new WebSocket('wss://talk.widesword.net');
 let localStream;
 let peerConnection;
 
 const config = {
     iceServers: [
-      { urls: 'stun:stun.l.google.com:19302' },
-      { urls: 'stun:stun1.l.google.com:19302' },
-      { urls: 'stun:stun2.l.google.com:19302' },
-      { urls: 'stun:stun3.l.google.com:19302' },
-      { urls: 'stun:stun4.l.google.com:19302' },
-    ]};  
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' },
+        { urls: 'stun:stun2.l.google.com:19302' },
+        { urls: 'stun:stun3.l.google.com:19302' },
+        { urls: 'stun:stun4.l.google.com:19302' },
+    ]
+};
 
 socket.addEventListener('message', event => {
     const msg = JSON.parse(event.data);
@@ -95,8 +99,17 @@ socket.addEventListener('message', event => {
         case 'candidate':
             handleIceCandidate(msg);
             break;
+        case 'new-chat':
+            handleNewChat(msg)
+            break;
+
     }
 });
+
+function handleNewChat(msg) {
+    const newMessageListItem = document.createElement("li")
+    newMessageListItem.textContent = msg.contents
+}
 
 function updateUserList(users) {
     userList.innerHTML = '';
